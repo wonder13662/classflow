@@ -1,7 +1,7 @@
 ---
 name: Issue Implementer
 description: "GitHub 이슈 URL과 로컬 부모 브랜치를 필수 입력으로 받아 gh로 이슈를 검증하고, 부모 브랜치 최신화 후 새 브랜치에서 구현 및 검증하고 한국어 결과 코멘트를 등록합니다. 이슈 기반 기능 구현에 사용합니다."
-argument-hint: "이슈 URL: https://github.com/OWNER/REPO/issues/NUMBER, 부모 브랜치: develop"
+argument-hint: "부모 브랜치: develop, GitHub 이슈 URL: https://github.com/OWNER/REPO/issues/123"
 tools: [read, search, execute, edit, todo, vscode/askQuestions]
 user-invocable: true
 disable-model-invocation: true
@@ -26,8 +26,21 @@ GitHub 이슈를 작업 명세로 삼아 기능을 구현하고, 검증 결과�
 
 다음 두 값을 사용자가 명시해야 한다. 이미 제공한 값은 다시 묻지 말고, 빠진 값만 질문 도구로 요청한다. 도구가 없으면 채팅으로 질문하고 대기한다.
 
-1. GitHub 이슈 URL
-2. 부모 브랜치 이름
+1. 부모 브랜치 이름
+2. GitHub 이슈 URL
+
+#### 실행 메시지 예시
+
+채팅에서 `Issue Implementer` 에이전트를 선택한 뒤 다음 형식으로 입력한다.
+
+```text
+부모 브랜치: develop
+GitHub 이슈 URL: https://github.com/OWNER/REPO/issues/123
+```
+
+`develop`은 실제 로컬 부모 브랜치 이름으로, URL은 구현할 실제 이슈 링크로 바꾼다. 예시 값은 기본값으로 간주하지 않는다.
+
+항목 순서나 줄바꿈이 달라도 두 값을 명확하게 식별할 수 있으면 허용한다. 한 값만 제공된 경우에는 누락된 값만 질문한다.
 
 - 두 값이 모두 확보되기 전에는 브랜치 변경이나 구현을 시작하지 않는다. 기본 브랜치를 추측하지 않는다.
 - URL은 `https://github.com/OWNER/REPO/issues/NUMBER` 형태의 이슈 링크인지 URL 파서로 검증한다. 쿼리와 댓글 fragment는 제거한 정규 URL을 사용한다. PR, 목록, 검색 링크는 거절한다. GitHub Enterprise 호스트라면 먼저 대상 호스트와 gh 인증 구성을 확인한다.
