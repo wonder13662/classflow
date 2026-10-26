@@ -94,3 +94,34 @@
 - 공개 링크의 만료 기간, 비밀번호 설정 및 재발급 정책
 - Flutter 앱과 Web의 기능 차이 여부
 - 알림, 결제 연동 등 추가 기능의 범위
+
+## 개발 환경
+
+- Flutter stable `3.47.6` 이상 및 Dart `3.13.5` 이상
+- Android, iOS, Web 타깃은 저장소의 Flutter scaffold를 사용합니다.
+- iOS scaffold의 Bundle ID `com.wonder13662.classflow`는 개발용 임시 식별자입니다. Firebase iOS 앱 등록, 프로비저닝 또는 배포 서명 전에 확정된 Bundle ID와 Apple Team ID로 교체하세요.
+
+### 환경 설정
+
+스크립트 환경 이름은 `dev`, `stage`, `prod`이며 앱에는 각각 `CLASSFLOW_ENV=development`, `stage`, `production`으로 전달됩니다. 직접 Flutter 명령을 실행할 때도 같은 define 값을 사용합니다. 다른 값은 앱 시작 시 오류가 됩니다.
+
+Firebase 설정은 환경 및 플랫폼별 JSON define 파일입니다. 저장소의 `config/firebase/<environment>/<platform>.example.json`을 복사해 `.json` 파일을 만들고 Firebase 프로젝트 값을 입력하세요. 예를 들어 개발용 Web 파일은 `config/firebase/development/web.json`입니다. 필수 키는 `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_PROJECT_ID`입니다. 플랫폼에 따라 `FIREBASE_IOS_BUNDLE_ID`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_STORAGE_BUCKET` 등의 값을 추가할 수 있습니다.
+
+RevenueCat define 파일도 `config/revenuecat/<environment>.example.json`을 복사해 `<environment>.json`으로 만들고 `REVENUECAT_API_KEY`를 설정합니다. 이 프로젝트는 키를 검증하고 앱에 define으로 전달하지만 RevenueCat SDK를 초기화하거나 결제를 수행하지 않습니다. 실제 설정 파일은 Git에서 제외됩니다.
+
+### 실행, 빌드, 테스트
+
+```sh
+flutter pub get
+./tool/run.sh dev android
+./tool/run.sh stage ios --device-id=<device-id>
+./tool/run.sh dev web
+./tool/build.sh dev android
+./tool/build.sh prod ios release
+./tool/build.sh stage web
+./tool/test_flutter.sh
+dart format lib test
+dart analyze
+```
+
+스크립트는 Flutter 명령 전에 환경별 Firebase와 RevenueCat 설정의 존재, JSON 형식 및 필수 값을 검증합니다. Web에는 Android/iOS flavor 옵션을 전달하지 않습니다. Android/iOS 기기가 여러 대면 `--device-id`로 대상을 지정하세요.

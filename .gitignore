@@ -1,11 +1,14 @@
 # Miscellaneous
 *.class
 *.lock
+!pubspec.lock
 *.log
 *.pyc
 *.swp
 .buildlog/
 .history
+.idea/
+*.iml
 
 
 
@@ -106,6 +109,12 @@ unlinked_spec.ds
 
 # Coverage
 coverage/
+
+# Local Firebase and RevenueCat credentials
+/config/firebase/**/*.json
+!/config/firebase/**/*.example.json
+/config/revenuecat/*.json
+!/config/revenuecat/*.example.json
 
 # Symbols
 app.*.symbols
