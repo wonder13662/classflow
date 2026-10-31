@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 자주 사용하는 실행 예제 (기본값: dev / ios / debug, 기기 자동 선택)
+# 자주 사용하는 실행 예제 (기본값: dev / ios / debug, 지정 기기가 있으면 플랫폼 추론)
 #   ./tool/run.sh
 #   ./tool/run.sh dev                       # 개발 환경, iOS
 #   ./tool/run.sh stage ios                 # 스테이징 환경, iOS
@@ -23,15 +23,17 @@ source "${SCRIPT_DIR}/_check_firebase.sh"
 source "${SCRIPT_DIR}/_check_revenuecat.sh"
 source "${SCRIPT_DIR}/_execution_timing.sh"
 
-usage() { echo "사용법: ./tool/run.sh [dev|stage|prod] [android|ios|web] [--debug|--release] [--device-id=ID] [--dart-define=KEY=VALUE] (기본값: dev ios, 기기 자동 선택)"; }
+usage() { echo "사용법: ./tool/run.sh [dev|stage|prod] [android|ios|web] [--debug|--release] [--device-id=ID] [--dart-define=KEY=VALUE] (기본값: dev ios, 지정 기기가 있으면 플랫폼 추론)"; }
 ENV_INPUT="dev"
 PLATFORM="ios"
+PLATFORM_EXPLICIT=false
 if [[ $# -gt 0 && "$1" != -* ]]; then
   ENV_INPUT="$1"
   shift
 fi
 if [[ $# -gt 0 && "$1" != -* ]]; then
   PLATFORM="$1"
+  PLATFORM_EXPLICIT=true
   shift
 fi
 resolve_classflow_environment "${ENV_INPUT}"
@@ -61,6 +63,61 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
+if [[ "${PLATFORM}" != "web" || -n "${DEVICE_ID}" ]]; then
+  devices_json="$(flutter devices --machine)"
+  if ! selected_device="$(printf '%s' "${devices_json}" | python3 -c '
+import json
+import sys
+
+platform, requested_id, explicit = sys.argv[1:]
+try:
+    devices = json.load(sys.stdin)
+    if not isinstance(devices, list):
+        raise ValueError("기기 목록은 배열이어야 합니다.")
+except (ValueError, TypeError) as error:
+    print("[오류] 기기 목록을 읽을 수 없습니다: {}".format(error), file=sys.stderr)
+    raise SystemExit(1)
+
+for device in devices:
+    if not device.get("isSupported", True):
+        continue
+    target = device.get("targetPlatform", "")
+    if target == "ios":
+        device_platform = "ios"
+    elif target.startswith("android-"):
+        device_platform = "android"
+    elif target.startswith("web-"):
+        device_platform = "web"
+    else:
+        continue
+    device_id = device.get("id", "")
+    if not device_id:
+        continue
+    if requested_id:
+        if device_id != requested_id:
+            continue
+        if explicit == "true" and device_platform != platform:
+            print("[오류] 지정한 플랫폼 {}과 기기 {}의 플랫폼 {}이 일치하지 않습니다.".format(
+                platform, requested_id, device_platform), file=sys.stderr)
+            raise SystemExit(1)
+    elif device_platform != platform:
+        continue
+    print("{}\t{}\t{}".format(device_platform, device_id, device.get("name") or device_id))
+    break
+else:
+    print("[오류] 실행 가능한 {} 기기가 없습니다. flutter devices로 확인하세요.".format(
+        requested_id or platform), file=sys.stderr)
+    raise SystemExit(1)
+  ' "${PLATFORM}" "${DEVICE_ID}" "${PLATFORM_EXPLICIT}")"; then
+    exit 1
+  fi
+  if [[ -z "${DEVICE_ID}" ]]; then DEVICE_SOURCE="자동 선택"; fi
+  IFS=$'\t' read -r PLATFORM DEVICE_ID DEVICE_NAME <<< "${selected_device}"
+  echo "[기기] ${PLATFORM} ${DEVICE_SOURCE}: ${DEVICE_ID} (${DEVICE_NAME})"
+else
+  DEVICE_ID="chrome"
+fi
+
 RUN_ARGS=(--"${RUN_MODE}" --dart-define=CLASSFLOW_ENV="${CLASSFLOW_ENV}")
 if [[ "${RUN_MODE}" == "release" || -f "${REPO_ROOT}/config/firebase/${CLASSFLOW_ENV}/${PLATFORM}.json" ]]; then
   check_required_firebase_config "${PLATFORM}" "${CLASSFLOW_ENV}"
@@ -76,50 +133,6 @@ else
 fi
 if [[ ${#EXTRA_DART_DEFINES[@]} -gt 0 ]]; then
   RUN_ARGS+=("${EXTRA_DART_DEFINES[@]}")
-fi
-if [[ "${PLATFORM}" == "web" ]]; then
-  DEVICE_ID="${DEVICE_ID:-chrome}"
-fi
-if [[ "${PLATFORM}" != "web" && ( -z "${DEVICE_ID}" || "${DEVICE_SOURCE}" == "VS Code 선택" ) ]]; then
-  devices_json="$(flutter devices --machine)"
-  device_ids=()
-  device_names=()
-  while IFS=$'\t' read -r device_id device_name; do
-    if [[ -n "${device_id}" ]]; then
-      device_ids+=("${device_id}")
-      device_names+=("${device_name}")
-    fi
-  done < <(printf '%s' "${devices_json}" | python3 -c '
-import json
-import sys
-
-platform = sys.argv[1]
-devices = json.load(sys.stdin)
-for device in devices:
-    target = device.get("targetPlatform", "")
-    if target.startswith(platform) and device.get("isSupported", True):
-        device_id = device.get("id", "")
-        device_name = device.get("name") or device_id
-        print("{}\t{}".format(device_id, device_name))
-  ' "${PLATFORM}")
-  if [[ ${#device_ids[@]} -eq 0 && -z "${DEVICE_ID}" ]]; then
-    echo "[오류] 연결된 ${PLATFORM} 기기가 없습니다. flutter devices로 확인하세요." >&2
-    exit 1
-  fi
-  if [[ -z "${DEVICE_ID}" ]]; then
-    DEVICE_ID="${device_ids[0]}"
-    DEVICE_NAME="${device_names[0]}"
-    DEVICE_SOURCE="자동 선택"
-  else
-    DEVICE_NAME="${DEVICE_ID}"
-    for index in "${!device_ids[@]}"; do
-      if [[ "${device_ids[index]}" == "${DEVICE_ID}" ]]; then
-        DEVICE_NAME="${device_names[index]}"
-        break
-      fi
-    done
-  fi
-  echo "[기기] ${PLATFORM} ${DEVICE_SOURCE}: ${DEVICE_ID} (${DEVICE_NAME})"
 fi
 if [[ -n "${DEVICE_ID}" ]]; then RUN_ARGS+=(-d "${DEVICE_ID}"); fi
 

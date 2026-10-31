@@ -32,6 +32,14 @@ class RunScriptTest(unittest.TestCase):
             os.environ,
             PATH=f"{binary}:{os.environ['PATH']}",
             FLUTTER_ARGS=str(self.arguments_file),
+            CLASSFLOW_DEVICE_ID="",
+            FLUTTER_DEVICES=json.dumps([
+                {"id": device_id, "targetPlatform": "ios"}
+                for device_id in ("test-ios", "chosen-ios", "vscode-ios", "task-ios")
+            ] + [
+                {"id": "test-android", "targetPlatform": "android-arm64"},
+                {"id": "chrome", "targetPlatform": "web-javascript"},
+            ]),
         )
 
     def run_script(self, *arguments):
@@ -48,8 +56,8 @@ class RunScriptTest(unittest.TestCase):
         destination.write_text(json.dumps(values))
         return destination
 
-    def firebase_config(self):
-        return self.write_config("config/firebase/development/ios.json", {
+    def firebase_config(self, platform="ios"):
+        return self.write_config(f"config/firebase/development/{platform}.json", {
             "FIREBASE_API_KEY": "test-api-key",
             "FIREBASE_APP_ID": "test-app-id",
             "FIREBASE_MESSAGING_SENDER_ID": "123456789",
@@ -183,6 +191,70 @@ class RunScriptTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.arguments_file.read_text().splitlines()[-2:], ["-d", "chosen-ios"])
+
+    def test_selected_device_resolves_platform_before_loading_configuration(self):
+        self.firebase_config("ios")
+        for platform, device_id in (("android", "test-android"), ("web", "chrome")):
+            firebase = self.firebase_config(platform)
+            for source in ("vscode", "cli", "environment"):
+                with self.subTest(platform=platform, source=source):
+                    self.environment["CLASSFLOW_DEVICE_ID"] = device_id if source == "environment" else ""
+                    arguments = {
+                        "vscode": (f"--vscode-device-id={device_id}",),
+                        "cli": (f"--device-id={device_id}",),
+                        "environment": (),
+                    }[source]
+                    result = self.run_script(*arguments)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    forwarded = self.arguments_file.read_text().splitlines()
+                    self.assertIn(f"--dart-define-from-file={firebase}", forwarded)
+                    self.assertEqual(forwarded[-2:], ["-d", device_id])
+                    self.assertNotIn("/ios.json", "\n".join(forwarded))
+
+    def test_explicit_platform_device_mismatch_blocks_flutter(self):
+        for platform, device_id in (
+            ("ios", "test-android"), ("android", "test-ios"),
+            ("web", "test-ios"), ("ios", "chrome"),
+        ):
+            for option in ("--device-id", "--vscode-device-id"):
+                with self.subTest(platform=platform, device_id=device_id, option=option):
+                    result = self.run_script("dev", platform, f"{option}={device_id}")
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("플랫폼", result.stderr)
+                    self.assertFalse(self.arguments_file.exists())
+
+    def test_selected_platform_config_is_loaded_without_ios_configuration(self):
+        for platform, device_id in (("android", "test-android"), ("web", "chrome")):
+            with self.subTest(platform=platform):
+                firebase = self.firebase_config(platform)
+                result = self.run_script(f"--vscode-device-id={device_id}")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(f"--dart-define-from-file={firebase}", self.arguments_file.read_text())
+
+    def test_cli_device_controls_platform_regardless_of_vscode_argument_order(self):
+        self.environment["CLASSFLOW_DEVICE_ID"] = "test-ios"
+        firebase = self.firebase_config("android")
+        for arguments in (
+            ("--device-id=test-android", "--vscode-device-id=chrome"),
+            ("--vscode-device-id=chrome", "--device-id=test-android"),
+        ):
+            with self.subTest(arguments=arguments):
+                result = self.run_script(*arguments)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                forwarded = self.arguments_file.read_text().splitlines()
+                self.assertIn(f"--dart-define-from-file={firebase}", forwarded)
+                self.assertEqual(forwarded[-2:], ["-d", "test-android"])
+
+    def test_unknown_unsupported_or_unhandled_selected_device_blocks_flutter(self):
+        self.environment["FLUTTER_DEVICES"] = json.dumps([
+            {"id": "unsupported", "targetPlatform": "ios", "isSupported": False},
+            {"id": "desktop", "targetPlatform": "darwin"},
+        ])
+        for device_id in ("missing", "unsupported", "desktop"):
+            with self.subTest(device_id=device_id):
+                result = self.run_script(f"--vscode-device-id={device_id}")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(self.arguments_file.exists())
 
     def test_help_works_without_positional_arguments(self):
         result = self.run_script("--help")

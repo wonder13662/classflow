@@ -3,6 +3,14 @@ import sys
 import time
 import unittest
 
+# 저장소 루트에서 실행하는 예제:
+#   ./tool/test_android_gradle.sh
+# 이 실행기는 test/tool/android_gradle_test.py를 찾아 실행하고,
+# 실행 시간, 성공률, 실패 및 오류 수를 요약합니다. 성공 시 종료 코드는 0입니다.
+# Python 실행기를 직접 호출해도 같은 테스트와 요약을 확인할 수 있습니다:
+#   python3 tool/_test_android_gradle.py
+# run.sh의 기기 선택 및 설정 로딩 회귀 테스트는 별도 파일로 실행합니다:
+#   python3 test/tool/run_script_test.py
 
 class CountingTestResult(unittest.TextTestResult):
     def __init__(self, *args, **kwargs):
