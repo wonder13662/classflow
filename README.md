@@ -105,7 +105,9 @@
 
 스크립트 환경 이름은 `dev`, `stage`, `prod`이며 앱에는 각각 `CLASSFLOW_ENV=development`, `stage`, `production`으로 전달됩니다. 직접 Flutter 명령을 실행할 때도 같은 define 값을 사용합니다. 다른 값은 앱 시작 시 오류가 됩니다.
 
-Firebase 설정은 환경 및 플랫폼별 JSON define 파일입니다. 저장소의 `config/firebase/<environment>/<platform>.example.json`을 복사해 `.json` 파일을 만들고 Firebase 프로젝트 값을 입력하세요. 예를 들어 개발용 Web 파일은 `config/firebase/development/web.json`입니다. 필수 키는 `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_PROJECT_ID`입니다. 플랫폼에 따라 `FIREBASE_IOS_BUNDLE_ID`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_STORAGE_BUCKET` 등의 값을 추가할 수 있습니다.
+기본 `debug` 실행은 Firebase와 RevenueCat 설정 파일 없이도 가능합니다. Firebase 설정이 없으면 앱은 Firebase 초기화를 건너뜁니다. 예제 값을 채운 임시 설정 파일을 만들 필요는 없습니다.
+
+Firebase를 추후 연동할 때는 환경 및 플랫폼별 JSON define 파일을 추가합니다. 저장소의 `config/firebase/<environment>/<platform>.example.json`을 복사해 `.json` 파일을 만들고 Firebase 프로젝트의 실제 값을 입력하세요. 예를 들어 개발용 iOS는 `config/firebase/development/ios.json`, Web은 `config/firebase/development/web.json`입니다. 필수 키는 `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_PROJECT_ID`입니다. 플랫폼에 따라 `FIREBASE_IOS_BUNDLE_ID`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_STORAGE_BUCKET` 등의 값을 추가할 수 있습니다. 같은 실행 명령을 다시 실행하면 파일이 자동으로 검증 및 전달되고 앱이 Firebase를 초기화합니다. iOS Bundle ID는 등록한 Firebase 앱과 일치해야 하며, 인증·푸시 등 개별 기능에는 별도 플랫폼 설정이 필요할 수 있습니다.
 
 RevenueCat define 파일도 `config/revenuecat/<environment>.example.json`을 복사해 `<environment>.json`으로 만들고 `REVENUECAT_API_KEY`를 설정합니다. 이 프로젝트는 키를 검증하고 앱에 define으로 전달하지만 RevenueCat SDK를 초기화하거나 결제를 수행하지 않습니다. 실제 설정 파일은 Git에서 제외됩니다.
 
@@ -113,6 +115,7 @@ RevenueCat define 파일도 `config/revenuecat/<environment>.example.json`을 �
 
 ```sh
 flutter pub get
+./tool/run.sh
 ./tool/run.sh dev android
 ./tool/run.sh stage ios --device-id=<device-id>
 ./tool/run.sh dev web
@@ -120,8 +123,13 @@ flutter pub get
 ./tool/build.sh prod ios release
 ./tool/build.sh stage web
 ./tool/test_flutter.sh
+python3 -m unittest discover -s test/tool -p '*_test.py' -v
 dart format lib test
 dart analyze
 ```
 
-스크립트는 Flutter 명령 전에 환경별 Firebase와 RevenueCat 설정의 존재, JSON 형식 및 필수 값을 검증합니다. Web에는 Android/iOS flavor 옵션을 전달하지 않습니다. Android/iOS 기기가 여러 대면 `--device-id`로 대상을 지정하세요.
+`run.sh`의 `debug` 실행은 없는 서비스 설정 파일만 생략합니다. 파일이 있으면 JSON 형식과 필수 값을 검증하므로, 잘못된 설정이나 예제 값이 남아 있으면 실행이 중단됩니다. Firebase와 RevenueCat은 각각 독립적으로 추가할 수 있습니다. `run.sh --release` 실행과 `build.sh`는 기존처럼 두 설정 파일을 모두 요구합니다.
+
+환경과 플랫폼은 생략할 수 있으며 기본값은 각각 `dev`, `ios`입니다. `./tool/run.sh`는 `./tool/run.sh dev ios`와 같고, `./tool/run.sh stage`는 `stage ios`로 실행합니다. 옵션만 지정하는 `./tool/run.sh --debug`도 가능합니다. Web에는 Android/iOS flavor 옵션을 전달하지 않습니다.
+
+VS Code 상태 표시줄에서 선택한 기기를 사용하려면 명령 팔레트의 `Tasks: Run Task`에서 `ClassFlow: Run`을 실행하세요. 이 task는 Flutter 확장의 선택 기기 ID를 스크립트 인자로 전달합니다. 직접 통합 터미널에서 실행할 때는 VS Code 선택값이 자동 전달되지 않으므로, `CLASSFLOW_DEVICE_ID=<device-id> ./tool/run.sh` 또는 `./tool/run.sh --device-id=<device-id>`를 사용하세요. 우선순위는 `--device-id`, VS Code task의 선택 기기, `CLASSFLOW_DEVICE_ID`, 플랫폼 지원 기기 중 첫 번째 자동 선택 순입니다. 선택 및 자동 선택 기기는 ID와 이름을 출력하며, Web 기본 기기는 Chrome입니다.
