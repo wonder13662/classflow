@@ -123,10 +123,13 @@ flutter pub get
 ./tool/build.sh prod ios release
 ./tool/build.sh stage web
 ./tool/test_flutter.sh
+./tool/test_android_gradle.sh
 python3 -m unittest discover -s test/tool -p '*_test.py' -v
 dart format lib test
 dart analyze
 ```
+
+`./tool/test_android_gradle.sh`는 Python 3으로 Android Gradle 설정 회귀 테스트를 실행합니다. 수행 시간, 전체 테스트 수, 성공 수와 성공률, 실패·오류·건너뜀 수를 출력하며 실패하거나 테스트가 없으면 종료 코드 `1`을 반환합니다. 건너뜀과 예상된 실패는 성공 수에 포함하지 않습니다. 이 검사는 Gradle 빌드 자체를 실행하지 않습니다.
 
 `run.sh`의 `debug` 실행은 없는 서비스 설정 파일만 생략합니다. 파일이 있으면 JSON 형식과 필수 값을 검증하므로, 잘못된 설정이나 예제 값이 남아 있으면 실행이 중단됩니다. Firebase와 RevenueCat은 각각 독립적으로 추가할 수 있습니다. `run.sh --release` 실행과 `build.sh`는 기존처럼 두 설정 파일을 모두 요구합니다.
 
