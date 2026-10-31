@@ -1,0 +1,6 @@
+{
+  "FIREBASE_API_KEY": "replace-with-firebase-api-key",
+  "FIREBASE_APP_ID": "replace-with-android-app-id",
+  "FIREBASE_MESSAGING_SENDER_ID": "replace-with-sender-id",
+  "FIREBASE_PROJECT_ID": "replace-with-project-id"
+}

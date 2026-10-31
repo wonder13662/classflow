@@ -1,0 +1,7 @@
+{
+  "FIREBASE_API_KEY": "replace-with-firebase-api-key",
+  "FIREBASE_APP_ID": "replace-with-ios-app-id",
+  "FIREBASE_MESSAGING_SENDER_ID": "replace-with-sender-id",
+  "FIREBASE_PROJECT_ID": "replace-with-project-id",
+  "FIREBASE_IOS_BUNDLE_ID": "com.wonder13662.classflow"
+}

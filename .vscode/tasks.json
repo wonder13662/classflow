@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ClassFlow: Run",
+      "type": "process",
+      "command": "${workspaceFolder}/tool/run.sh",
+      "args": [
+        "--vscode-device-id=${command:flutter.getSelectedDeviceId}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
